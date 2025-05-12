@@ -23,11 +23,13 @@ const server = new WebSocketServer({ port });
 
 const connections = [];
 const ids = [];
+let currentId = 1;
 let requestCount = 0;
 
 server.on("connection", (ws) => {
-    const id = Date.now();
     connections.push(ws);
+    const id = currentId;
+    currentId++;
     ids.push(id);
     connections.forEach((connection) => {
         if (connection === ws) {

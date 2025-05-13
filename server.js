@@ -26,13 +26,14 @@ const ids = {};
 const requests = {};
 let requestCount = 0;
 let totalBytes = 0;
+const maxConnections = 8;
 
-for (let i = 1; i <= 8; i++) {
+for (let i = 1; i <= maxConnections; i++) {
     ids[i] = null;
 }
 
 function getId() {
-    for (let i = 1; i <= 8; i++) {
+    for (let i = 1; i <= maxConnections; i++) {
         if (ids[i] === null) {
             return i;
         }
@@ -41,6 +42,7 @@ function getId() {
 }
 
 server.on("connection", (ws) => {
+    if (connections.length >= maxConnections) return ws.close();
     connections.push(ws);
     const id = getId();
     ids[id] = ws;

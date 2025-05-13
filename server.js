@@ -29,12 +29,12 @@ let totalBytes = 0;
 const maxConnections = 8;
 
 for (let i = 1; i <= maxConnections; i++) {
-    ids[i] = null;
+    ids[i] = maxConnections;
 }
 
 function getId() {
     for (let i = 1; i <= maxConnections; i++) {
-        if (ids[i] === null) {
+        if (ids[i] === maxConnections) {
             return i;
         }
     }
@@ -51,8 +51,11 @@ server.on("connection", (ws) => {
             connection.send(`self||${id}`);
         } else {
             connection.send(`connect||${id}`);
-            ws.send(`connect||${ids[connections.indexOf(connection)]}`);
         }
+    });
+    Object.keys(ids).forEach((key) => {
+        if (ids[key] === ws || ids[key] === maxConnections) return;
+        ws.send(`connect||${key}`);
     });
     ws.on("message", (message) => {
         requestCount++;
@@ -64,7 +67,7 @@ server.on("connection", (ws) => {
     });
     ws.on("close", () => {
         connections.splice(connections.indexOf(ws), 1);
-        ids[id] = null;
+        ids[id] = maxConnections;
         connections.forEach((connection) => {
             connection.send(`disconnect||${id}`);
         });
@@ -93,7 +96,9 @@ function convertBytes(bytes) {
 }
 
 const App = () => {
-    const [line1, setLine1] = useState(`Connections: ${connections.length}/${maxConnections}`);
+    const [line1, setLine1] = useState(
+        `Connections: ${connections.length}/${maxConnections}`
+    );
     const [line2, setLine2] = useState(`Total Requests: ${requestCount}`);
     const [lines, setLines] = useState([]);
 

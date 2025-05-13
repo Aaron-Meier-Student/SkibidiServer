@@ -22,15 +22,28 @@ const port = process.argv[2] || 8080;
 const server = new WebSocketServer({ port });
 
 const connections = [];
-const ids = [];
-let currentId = 1;
+const ids = {};
+const requests = {};
 let requestCount = 0;
+let totalBytes = 0;
+
+for (let i = 1; i <= 8; i++) {
+    ids[i] = null;
+}
+
+function getId() {
+    for (let i = 1; i <= 8; i++) {
+        if (ids[i] === null) {
+            return i;
+        }
+    }
+    return null;
+}
 
 server.on("connection", (ws) => {
     connections.push(ws);
-    const id = currentId;
-    currentId++;
-    ids.push(id);
+    const id = getId();
+    ids[id] = ws;
     connections.forEach((connection) => {
         if (connection === ws) {
             connection.send(`self||${id}`);
@@ -41,6 +54,7 @@ server.on("connection", (ws) => {
     });
     ws.on("message", (message) => {
         requestCount++;
+        analyzeRequest(message);
         connections.forEach((connection) => {
             if (connection === ws) return;
             connection.send(message);
@@ -48,26 +62,80 @@ server.on("connection", (ws) => {
     });
     ws.on("close", () => {
         connections.splice(connections.indexOf(ws), 1);
-        ids.splice(ids.indexOf(id), 1);
+        ids[id] = null;
         connections.forEach((connection) => {
             connection.send(`disconnect||${id}`);
         });
     });
 });
 
+async function analyzeRequest(message) {
+    totalBytes += Buffer.byteLength(message);
+    message = Buffer.from(message).toString();
+    const method = message.split("||")[0];
+    if (!requests[method]) requests[method] = 0;
+    requests[method]++;
+}
+
+function convertBytes(bytes) {
+    const kb = bytes / 1024;
+    const mb = kb / 1024;
+    const gb = mb / 1024;
+
+    return {
+        bytes,
+        kb: kb.toFixed(2),
+        mb: mb.toFixed(2),
+        gb: gb.toFixed(2),
+    };
+}
+
 const App = () => {
     const [line1, setLine1] = useState(`Connections: ${connections.length}`);
-    const [line2, setLine2] = useState(`Total equests: ${requestCount}`);
+    const [line2, setLine2] = useState(`Total Requests: ${requestCount}`);
+    const [lines, setLines] = useState([]);
+
     useEffect(() => {
         const interval = setInterval(() => {
             setLine1(`Connections: ${connections.length}`);
             setLine2(
-                `Requests: ${numbro(requestCount).format({
+                `Total Requests | ${numbro(requestCount).format({
                     average: true,
                     mantissa: 2,
-                })}`
+                })} | ${convertBytes(totalBytes).kb} kb`
             );
-        }, 10);
+
+            const entries = Object.entries(requests);
+            const maxLabelLength = Math.max(
+                ...entries.map(([key]) => key.length),
+                6
+            );
+            const formatLine = (prefix, method, count) => {
+                const paddedMethod = method.padEnd(maxLabelLength, " ");
+                return `${prefix} ${paddedMethod} | ${count}`;
+            };
+
+            const summaryLines = [];
+
+            if (entries.length > 0) {
+                entries.forEach(([method, count], i) => {
+                    const isLast = i === entries.length - 1;
+                    summaryLines.push(
+                        formatLine(
+                            isLast ? "└" : "├",
+                            method,
+                            numbro(requests[method]).format({
+                                average: true,
+                                mantissa: 2,
+                            })
+                        )
+                    );
+                });
+            }
+
+            setLines(summaryLines);
+        }, 100);
+
         return () => clearInterval(interval);
     }, []);
 
@@ -76,7 +144,10 @@ const App = () => {
         null,
         React.createElement(Text, { color: "red" }, `${networkIp}:${port}`),
         React.createElement(Text, { color: "yellow" }, line1),
-        React.createElement(Text, { color: "green" }, line2)
+        React.createElement(Text, { color: "green" }, line2),
+        ...lines.map((line, i) =>
+            React.createElement(Text, { key: i, color: "white" }, line)
+        )
     );
 };
 render(React.createElement(App));

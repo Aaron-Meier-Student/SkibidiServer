@@ -93,7 +93,7 @@ function convertBytes(bytes) {
 }
 
 const App = () => {
-    const [line1, setLine1] = useState(`Connections: ${connections.length}`);
+    const [line1, setLine1] = useState(`Connections: ${connections.length}/${maxConnections}`);
     const [line2, setLine2] = useState(`Total Requests: ${requestCount}`);
     const [lines, setLines] = useState([]);
 

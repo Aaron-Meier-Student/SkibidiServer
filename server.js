@@ -99,7 +99,7 @@ const App = () => {
 
     useEffect(() => {
         const interval = setInterval(() => {
-            setLine1(`Connections: ${connections.length}`);
+            setLine1(`Connections: ${connections.length}/${maxConnections}`);
             setLine2(
                 `Total Requests | ${numbro(requestCount).format({
                     average: true,
